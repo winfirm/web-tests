@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+  <title>Charts</title>
+  <link rel="stylesheet" href="./main.css?ver=1001" crossorigin="anonymous">
+  <script src="./lightweight-charts-v4.js" crossorigin="anonymous"></script>
+  <script src="./jquery-3.6.0.min.js" crossorigin="anonymous"></script>
+  <script src="./jquery.touch.js" crossorigin="anonymous"></script>
+  <script src="./main.js?ver=1001" crossorigin="anonymous"></script>
+</head>
+<body οncοntextmenu="return false" οndragstart="return false" onselectstart="return false"
+  οnselect="document.selection.empty()" οncοpy="document.selection.empty()" onbeforecopy="return false"
+  οnmοuseup="document.selection.empty()">
+  <div class="chart-container">
+    <div id="symbol" class="symbol-item"></div>
+    <div id="price" class="price-item"></div>
+    <div id="timeframe" class="timeframe-item">Times</div>
+    <div class="chart-body" id="rootEle">
+      <div class="chart-item" id="chart1">
+      </div>
+      <div id="switch" class="switch-item">SW</div>
+      <div id="timeframe" class="timeframe-item"><a href="metatrader4://symbols" style="text-decoration: none;">^<span style="font-size:12px;color:red">$</span>^</a></div>
+      <div class="chart-item" id="chart2"></div>
+    </div>
+    <div id="fav_list" class="fav_list"></div>
+  </div>
+</body>
+</html>
