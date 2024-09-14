@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+	<title>Summary</title>
+	<script type="text/javascript" src="./jquery-3.6.0.min.js" crossorigin="anonymous"></script>
+	<script type="text/javascript" src="./lightweight-charts-v4.js" crossorigin="anonymous"></script>
+	<style>
+		body {
+			margin: 0px;
+			padding: 0px;
+			background-color: #ffffff;
+		}
+		#loading {
+			text-align: center;
+			padding-top:50px;
+		}
+		#chart_div {
+			margin-top: 0px;
+		}
+		.chart {
+			float: left;
+			border: #e1e1e1 solid 1px;
+			padding: 0px;
+			margin-bottom: 5px;
+		}
+		.chart .pannel {
+			position: absolute;
+			padding: 1px 3px;
+			clear: both;
+			color: #333;
+			background-color: #33cc00;
+			font-size: 8px;
+			z-index: 3;
+			font-weight: bold;
+		}
+		#timeframe{
+			position: fixed;
+			font-size: 10px;
+			right: 0px;
+			z-index:3;
+			background-color: #cc0000;
+			padding: 1px 5px;
+			
+		}
+	</style>
+</head>
+
+<body>
+	<div id="timeframe">SW</div>
+	<div id="loading">loading...</div>
+	<div id="chart_div">
+		<div id="chart1" class="chart"></div>
+		<div id="chart2" class="chart"></div>
+		<div id="chart3" class="chart"></div>
+		<div id="chart4" class="chart"></div>
+		<div id="chart5" class="chart"></div>
+		<div id="chart6" class="chart"></div>
+		<div id="chart7" class="chart"></div>
+		<div id="chart8" class="chart"></div>
+		<div id="chart9" class="chart"></div>
+		<div id="chart10" class="chart"></div>
+		<div id="chart11" class="chart"></div>
+		<div id="chart12" class="chart"></div>
+		<div id="chart13" class="chart"></div>
+		<div id="chart14" class="chart"></div>
+		<div id="chart15" class="chart"></div>
+		<div id="chart16" class="chart"></div>
+		<div id="chart17" class="chart"></div>
+		<div id="chart18" class="chart"></div>
+		<div id="chart19" class="chart"></div>
+		<div id="chart20" class="chart"></div>
+		<div id="chart21" class="chart"></div>
+		<div id="chart22" class="chart"></div>
+		<div id="chart23" class="chart"></div>
+		<div id="chart24" class="chart"></div>
+		<div id="chart25" class="chart"></div>
+		<div id="chart26" class="chart"></div>
+		<div id="chart27" class="chart"></div>
+		<div id="chart28" class="chart"></div>
+		<div id="chart29" class="chart"></div>
+		<div id="chart30" class="chart"></div>
+		<div id="chart31" class="chart"></div>
+		<div id="chart32" class="chart"></div>
+	</div>
+	<script type="text/javascript">
+		$("#timeframe").click(function () {
+				console.log("timeframe clicked.")
+				if(dataType==0){
+					dataType=1;
+				}else if(dataType==1){
+					dataType=0;
+				}
+
+				show_all_result();
+		});
+
+		function set_load_result(symbol, idx, datas) {
+			let chartid = 'chart' + (parseInt(idx) + 1);
+
+			$("#" + chartid).empty();
+
+			$("#" + chartid).append("<div class='pannel'>" + symbol + "</div>");
+			$("#" + chartid).click(function () {
+				window.location.href = 'metatrader5://chart/' + symbol;
+			});
+
+			const chart = LightweightCharts.createChart(document.getElementById(chartid), getChartOption());
+
+			const mainPriceOption = {
+				scaleMargins: {
+					top: 0.05,
+					bottom: 0.25
+				},
+			};
+			show_candle(chart, datas.datas, mainPriceOption);
+			show_mas(chart, datas.mas, ['#0099ff', '#ff0000', '#0000ff'], mainPriceOption);
+
+			const macdPriceOption = {
+				scaleMargins: {
+					top: 0.75,
+					bottom: 0.01
+				},
+			};
+			show_histogram(chart, datas.macds[2], macdPriceOption);
+			let macd = datas.macds[0];
+			let signal = datas.macds[1];
+			show_mas(chart, [macd, signal], ['#ff0000', '#0000ff'], macdPriceOption, 'macd');
+
+			//chart.timeScale().fitContent();
+		}
+
+		function show_candle(chart, datas, priceOption) {
+			const candlestickSeries = chart.addCandlestickSeries({
+				upColor: '#cc0000', downColor: '#33cc00', borderVisible: false,
+				wickUpColor: '#cc0000', wickDownColor: '33cc00',
+				priceFormat: {
+					type: 'price',
+					precision: 6
+				}
+			});
+			candlestickSeries.priceScale().applyOptions(priceOption);
+			candlestickSeries.setData(datas);
+		}
+
+		function show_mas(chart, datasma, colors, priceOption, priceScaleId) {
+			let lineSeries;
+			for (let i = 0; i < datasma.length; i++) {
+				lineSeries = chart.addLineSeries({
+					priceScaleId,
+					color: colors[i],
+					lineWidth: 0.5,
+					priceLineVisible: false,
+					priceFormat: {
+						type: 'price',
+						precision: 6
+					}
+				});
+				lineSeries.priceScale().applyOptions(priceOption);
+				lineSeries.setData(datasma[i]);
+			}
+		}
+
+		function show_histogram(chart, histogram, priceOption) {
+			let histogramSeries = chart.addHistogramSeries({
+				color: '#33cc00',
+				priceLineVisible: false,
+				priceScaleId: 'macd',
+				priceFormat: {
+					type: 'volume',
+					precision: 6
+				}
+			});
+
+			histogramSeries.priceScale().applyOptions(priceOption);
+			histogramSeries.setData(histogram);
+		}
+
+		function load_all_datas(symbols) {
+			$("#loading").show();
+			$("#chart_div").hide();
+			for (let idx in symbols) {
+				let symbol = symbols[idx];
+				load_item_datas(symbol, idx);
+			}
+		}
+
+		function load_item_datas(symbol, idx) {
+			let url = 'https://chart.winfirm.com.cn/datas/kline/'+'symbol + '&times=D1';
+			$.ajax({
+				type: 'get',
+				url: url,
+				data: '',
+				traditional: true,
+				success: (json) => {
+					datas_all[symbol] = { symbol, idx, result: JSON.parse(json)};
+					count++;
+					$("#loading").text('loading ' + count + '/' + SYMBOLS.length);
+					if (count == SYMBOLS.length) {
+						$("#loading").hide();
+						$("#chart_div").show();
+						show_all_result();
+					}
+				}
+			});
+		}
+
+		function show_all_result(){
+			for (let idx in SYMBOLS) {
+				let item = datas_all[SYMBOLS[idx]];
+				set_load_result(item.symbol, item.idx, dataType==0? item.result.datas1: item.result.datas2);
+			}
+		}
+
+		function timestampToString(timestamp) {
+			const date = new Date(timestamp * 1000);
+			const Y = date.getFullYear() + '-';
+			const M = (date.getMonth() + 1 < 10 ? '0' + (date.getMonth() + 1) : date.getMonth() + 1) + '-';
+			const D = date.getDate() + ' ';
+			const h = date.getHours() + ':';
+			const m = date.getMinutes()
+			return M + D + h + m;
+		}
+
+		function getChartOption() {
+			let width = (screen.width > 500 ? (screen.width - 30) / 5.0 : (screen.width - 20) / 2.25)
+			let height = (screen.width > 500 ? screen.height / 3.0 : screen.height / 6.6)
+			return {
+				width,
+				height,
+				timeScale: {
+					rightOffset: screen.width > 500 ? 5 : 1,
+					barSpacing: screen.width > 500 ? 4.25 :3.75,
+					rightBarStaysOnScroll: true,
+					fixLeftEdge: false,
+					alignLabels: false,
+					lockVisibleTimeRangeOnResize:true,
+					borderVisible: false,
+					visible:false,
+					tickMarkFormatter: (time, tickMarkType, locale) => {
+						if (LightweightCharts.isUTCTimestamp(time)) {
+							return timestampToString(time);
+						} else {
+							return time;
+						}
+					},
+				},
+				rightPriceScale: {
+					visible: false,
+				},
+
+				layout: {
+					textColor: 'black',
+					background: { type: 'solid', color: 'white' }
+				},
+				localization: {
+					locale: 'en-US',
+					dateFormat: 'yyyy/MM/dd',
+					timeFormatter: businessDayOrTimestamp => {
+						if (LightweightCharts.isUTCTimestamp(businessDayOrTimestamp)) {
+							return timestampToString(businessDayOrTimestamp);
+						} else {
+							return businessDayOrTimestamp;
+						}
+					}
+				},
+				grid: {
+					vertLines: {
+						color: 'rgba(105 , 105 , 105 , 0.2)',
+					},
+					horzLines: {
+						color: 'rgba(105  , 105  , 105  , 0.2)',
+					}
+				},
+				crosshair: {
+					mode: 2,
+					vertLine:{
+						visible:false
+					},
+					horzLine:{
+						visible:false
+					}
+				},
+				handleScroll: {
+					horzTouchDrag: false,
+					vertTouchDrag: false,
+				}
+			};
+		}
+		//store
+		const datas_all = {};
+		var dataType=0;
+		var count = 0;
+		var SYMBOLS = ["EURUSD", "GBPUSD", "AUDUSD", "NZDUSD", "USDJPY", "USDCAD", "USDCHF", "GOLD", "EURGBP", "EURJPY", "EURCHF", "EURAUD", "EURCAD", "EURNZD", "GBPJPY", "GBPCHF", "GBPAUD", "GBPCAD", "GBPNZD", "AUDJPY", "AUDCHF", "AUDNZD", "AUDCAD", "CADJPY", "CADCHF", "NZDJPY", "NZDCHF", "NZDCAD", "CHFJPY"];
+		// SYMBOLS= ["EURUSD", "GBPUSD","AUDUSD", "NZDUSD","USDJPY", "USDCAD","USDCHF","GOLD"];
+		//run
+		load_all_datas(SYMBOLS);
+	</script>
+</body>
+
+</html>

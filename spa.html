@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+	<meta charset="UTF-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+	<title>Summary</title>
+	<script type="text/javascript" src="./lightweight-charts-v4.js" crossorigin="anonymous"></script>
+	<script src='https://unpkg.com/react@16.3.1/umd/react.production.min.js'></script>
+	<script src='https://unpkg.com/react-dom@16.3.1/umd/react-dom.production.min.js'>    </script>
+	<script src="https://unpkg.com/history/umd/history.production.min.js"></script>
+	<script src='https://unpkg.com/react-router-dom@5.0.0/umd/react-router-dom.min.js'></script>
+	<script src='https://unpkg.com/babel-standalone@6.26.0/babel.js'></script>
+	<style>
+		body {
+			background-color: #ffffff;
+			margin: 0px;
+			padding: 0px;
+		}
+
+		#loading {
+			text-align: center;
+			padding: 100px;
+		}
+
+		#chart_div {
+			margin-top: 0px;
+		}
+
+		.chart {
+			float: left;
+			border: #e1e1e1 solid 1px;
+			padding: 0px;
+			margin-bottom: 5px;
+		}
+
+		.pannel {
+			position: absolute;
+			padding: 1px 3px;
+			clear: both;
+			color: #333;
+			background-color: #99cc99;
+			font-size: 14px;
+			z-index: 3;
+		}
+
+		#timeframe {
+			position: fixed;
+			top: 6px;
+			right: 15px;
+			z-index: 3;
+			background-color: #999999;
+			padding: 1px 5px;
+		}
+	</style>
+</head>
+
+<body>
+	<div id="root"></div>
+	<script type="text/babel">
+		//https://www.w3schools.com/react/default.asp
+		//https://www.pluralsight.com/guides/using-react-router-with-cdn-links
+		const Link = ReactRouterDOM.Link;
+		const Route = ReactRouterDOM.Route;
+
+		//https://github.com/remix-run/history/blob/dev/docs/installation.md
+		//https://github.com/remix-run/history/blob/dev/docs/getting-started.md
+		//https://stackoverflow.com/questions/70522486/using-react-router-with-history-js-via-cdn
+		const { createBrowserHistory } = window.HistoryLibrary;
+
+		//not the window.history
+		const ReactHistory = createBrowserHistory();
+
+		function getChartOption() {
+			let width = (screen.width > 500 ? (screen.width - 30) / 5.0 : (screen.width - 20) / 2.25)
+			let height = (screen.width > 500 ? screen.height / 3.0 : screen.height / 6.6)
+			return {
+				width,
+				height,
+				timeScale: {
+					rightOffset: screen.width > 500 ? 5 : 1,
+					barSpacing: screen.width > 500 ? 4.25 :3.75,
+					rightBarStaysOnScroll: true,
+					fixLeftEdge: false,
+					alignLabels: false,
+					lockVisibleTimeRangeOnResize:true,
+					borderVisible: false,
+					visible:false,
+					tickMarkFormatter: (time, tickMarkType, locale) => {
+						if (LightweightCharts.isUTCTimestamp(time)) {
+							return timestampToString(time);
+						} else {
+							return time;
+						}
+					},
+				},
+				rightPriceScale: {
+					visible: false,
+				},
+
+				layout: {
+					textColor: 'black',
+					background: { type: 'solid', color: 'white' }
+				},
+				localization: {
+					locale: 'en-US',
+					dateFormat: 'yyyy/MM/dd',
+					timeFormatter: businessDayOrTimestamp => {
+						if (LightweightCharts.isUTCTimestamp(businessDayOrTimestamp)) {
+							return timestampToString(businessDayOrTimestamp);
+						} else {
+							return businessDayOrTimestamp;
+						}
+					}
+				},
+				grid: {
+					vertLines: {
+						color: 'rgba(105 , 105 , 105 , 0.2)',
+					},
+					horzLines: {
+						color: 'rgba(105  , 105  , 105  , 0.2)',
+					}
+				},
+				crosshair: {
+					mode: 2,
+					vertLine:{
+						visible:false
+					},
+					horzLine:{
+						visible:false
+					}
+				},
+				handleScroll: {
+					horzTouchDrag: false,
+					vertTouchDrag: false,
+				}
+			};
+		}
+
+		function timestampToString(timestamp) {
+			const date = new Date(timestamp * 1000);
+			const Y = date.getFullYear() + '-';
+			const M = (date.getMonth() + 1 < 10 ? '0' + (date.getMonth() + 1) : date.getMonth() + 1) + '-';
+			const D = date.getDate() + ' ';
+			const h = date.getHours() + ':';
+			const m = date.getMinutes()
+			return M + D + h + m;
+		}
+
+		class AppBar extends React.Component {
+			constructor(props) {
+				super(props);
+			}
+
+			render() {
+				const back_style = {
+					color: "white",
+					float:"left",
+					backgroundColor:'transparent',
+					border:'0px',
+					width:'30px',
+					height:'30px'
+				};
+
+				const appbar= {
+					backgroundColor:'grey',
+					height:'40px',
+					clear:'both',
+					paddingTop:'10px'
+				};
+
+				const title= {
+					color:'red',
+					textSize:'16px',
+					textAlign:'center'
+				};
+				
+				if (this.props.backui) {
+					const goBack = () => {
+						ReactHistory.back()
+					}
+					return (
+						<div  style={appbar}>
+							<img src='./left.png' onClick={goBack} style={back_style}/>
+							<div style={title}>{this.props.title}</div>
+						</div>);
+				} else {
+					return (
+						<div style={appbar}>
+							<div style={title}>{this.props.title}</div>
+						</div>);
+				}
+			}
+		}
+
+		function HomePage() {
+			return (
+				<div>
+					<AppBar title={"Home"} backui={false} />
+					<Link to="/chart">Chart</Link>
+				</div>
+			);
+		}
+
+		class ChartPage extends React.Component {
+			constructor(props) {
+				super(props);
+				this.myRef = React.createRef();
+			}
+
+			render() {
+				const goBack = () => {
+					ReactHistory.back()
+				}
+				return (
+					<div>
+						<AppBar title={"Chart"} backui={true} />
+						<div ref={this.myRef} />
+					</div>
+				);
+			}
+
+			componentDidMount() {
+				fetch("https://chart.winfirm.com.cn/datas/klines/EURUSDm%23")
+				.then(res =>{
+					return res.json(); 
+				}).then(data =>{
+					const chart = LightweightCharts.createChart(this.myRef.current, getChartOption());
+					const candlestickSeries = chart.addCandlestickSeries({
+						upColor: '#cc0000', downColor: '#33cc00', borderVisible: false,
+						wickUpColor: '#cc0000', wickDownColor: '33cc00',
+						priceFormat: {
+							type: 'price',
+							precision: 6
+						}
+					});
+					const mainPriceOption = {
+						scaleMargins: {
+							top: 0.05,
+							bottom: 0.25
+						},
+					};
+					candlestickSeries.priceScale().applyOptions(mainPriceOption);
+					candlestickSeries.setData(data.H1.datas);
+					}).catch(e =>{
+						console.log(e)
+					})
+			}
+		}
+
+		function App() {
+			return (
+				<ReactRouterDOM.HashRouter>
+					<Route path="/" exact component={HomePage} />
+					<Route path="/chart" component={ChartPage} />
+				</ReactRouterDOM.HashRouter>
+			);
+		}
+
+		ReactDOM.render(<App />, document.querySelector('#root'));
+	</script>
+</body>
+
+</html>

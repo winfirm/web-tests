@@ -123,14 +123,14 @@ function show_fav_list() {
 }
 
 function reload_symbols() {
-    let url = 'https://www.winfirm.com.cn/serv/chart_symbols';
+    let url = 'https://api.winfirm.com.cn/datas/symbols';
     $.ajax({
         type: 'GET',
         url: url,
         data: '',
         traditional: true,
         success: function (result) {
-            let obj = JSON.parse(result);
+            let obj = eval(result);
             symbols = obj.forex;
             seriesType = 0;
             init_charts(symbols);
@@ -159,7 +159,7 @@ function load_chart_item(symbol) {
     saveLastSymbol(symbol);
 
     isloading = true;
-    let url = 'https://www.winfirm.com.cn/serv/index_json?symbol=' + symbol + '&times=D1';
+    let url = 'https://api.winfirm.com.cn/datas/klines/' + symbol.replace("#","%23");
     $.ajax({
         type: 'get',
         url: url,
@@ -167,7 +167,7 @@ function load_chart_item(symbol) {
         traditional: true,
         success: function (json) {
             isloading = false;
-            result = JSON.parse(json);;
+            result = eval(json);;
             set_load_result();
         }
     });
@@ -176,9 +176,9 @@ function load_chart_item(symbol) {
 function set_load_result() {
     let datas1;
     if (getTimeFrame() == 'D1') {
-        datas1 = result.datas1;
+        datas1 = result.D1;
     } else {
-        datas1 = result.datas2;
+        datas1 = result.M5;
     }
 
     let symbol = getLastSymbol();
@@ -228,9 +228,15 @@ function show_candle_chart(chartid, symbol, digits, point, datas) {
         chart.timeScale().subscribeVisibleLogicalRangeChange(sizeChangEvent(1))
     } else {
         subChartData.chart2 = chart;
+        if(!datas.macds){
+        	return
+        }
         let macd = datas.macds[0];
         let signal = datas.macds[1];
         let histogram = datas.macds[2];
+        if(!macd || !signal || !histogram){
+        	return;
+        }
         let histogramSeries = chart.addHistogramSeries({
             color: '#26a69a',
             priceLineVisible: false,
