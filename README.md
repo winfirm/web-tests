@@ -1,4 +1,4 @@
-The source for blog site: https://winfirm.net/web-tests
+The source for blog site: https://winfirm.top/web-tests
 
 Steps that take to make web page faster loaded:  
 1.merge js, make mini.js  
