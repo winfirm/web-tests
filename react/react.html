@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+	<meta charset="UTF-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+	<title>Home -- React Tests</title>
+	<script src='https://unpkg.com/react@16.3.1/umd/react.production.min.js'></script>
+	<script src='https://unpkg.com/react-dom@16.3.1/umd/react-dom.production.min.js'>    </script>
+	<script src="https://unpkg.com/history/umd/history.production.min.js"></script>
+	<script src='https://unpkg.com/react-router-dom@5.0.0/umd/react-router-dom.min.js'></script>
+	<script src='https://unpkg.com/babel-standalone@6.26.0/babel.js'></script>
+	<script type="text/javascript" src="./assets/js/lightweight-charts-v4.1.0.js" crossorigin="anonymous"></script>
+	<style>
+		body {
+			background-color: #ffffff;
+			margin: 0px;
+			padding: 0px;
+		}
+	</style>
+</head>
+
+<body>
+	<div id="root"></div>
+	<script type="text/babel">
+		const Link = ReactRouterDOM.Link;
+		const Route = ReactRouterDOM.Route;
+
+		const { createBrowserHistory } = window.HistoryLibrary;
+		const ReactHistory = createBrowserHistory();//not the window.history
+		const SYMBOLS = ["EURUSD", "GBPUSD", "AUDUSD", "NZDUSD", "USDJPY", "USDCAD", "USDCHF", "GOLD", "EURGBP", "EURJPY", "EURCHF", "EURAUD", "EURCAD", "EURNZD", "GBPJPY", "GBPCHF", "GBPAUD", "GBPCAD", "GBPNZD", "AUDJPY", "AUDCHF", "AUDNZD", "AUDCAD", "CADJPY", "CADCHF", "NZDJPY", "NZDCHF", "NZDCAD", "CHFJPY"];
+
+		function getChartOption() {
+			let width = (screen.width - 20);
+			let height = screen.height - 200;
+			return {
+				width,
+				height,
+				timeScale: {
+					rightOffset: screen.width > 500 ? 5 : 1,
+					barSpacing: screen.width > 500 ? 4.25 : 3.75,
+					rightBarStaysOnScroll: true,
+					fixLeftEdge: false,
+					alignLabels: false,
+					lockVisibleTimeRangeOnResize: true,
+					borderVisible: false,
+					visible: false,
+					tickMarkFormatter: (time, tickMarkType, locale) => {
+						if (LightweightCharts.isUTCTimestamp(time)) {
+							return timestampToString(time);
+						} else {
+							return time;
+						}
+					},
+				},
+				rightPriceScale: {
+					visible: false,
+				},
+
+				layout: {
+					textColor: 'black',
+					background: { type: 'solid', color: 'white' }
+				},
+				localization: {
+					locale: 'en-US',
+					dateFormat: 'yyyy/MM/dd',
+					timeFormatter: businessDayOrTimestamp => {
+						if (LightweightCharts.isUTCTimestamp(businessDayOrTimestamp)) {
+							return timestampToString(businessDayOrTimestamp);
+						} else {
+							return businessDayOrTimestamp;
+						}
+					}
+				},
+				grid: {
+					vertLines: {
+						color: 'rgba(105 , 105 , 105 , 0.2)',
+					},
+					horzLines: {
+						color: 'rgba(105  , 105  , 105  , 0.2)',
+					}
+				},
+				crosshair: {
+					mode: 2,
+					vertLine: {
+						visible: false
+					},
+					horzLine: {
+						visible: false
+					}
+				},
+				handleScroll: {
+					horzTouchDrag: false,
+					vertTouchDrag: false,
+				}
+			};
+		}
+
+		function timestampToString(timestamp) {
+			const date = new Date(timestamp * 1000);
+			const Y = date.getFullYear() + '-';
+			const M = (date.getMonth() + 1 < 10 ? '0' + (date.getMonth() + 1) : date.getMonth() + 1) + '-';
+			const D = date.getDate() + ' ';
+			const h = date.getHours() + ':';
+			const m = date.getMinutes()
+			return M + D + h + m;
+		}
+
+
+		class ChartPage extends React.Component {
+			constructor(props) {
+				super(props);
+
+				this.chartRef = React.createRef();
+				this.symbol = props.history.location.query.symbol || 'EURUSD';
+				this.curIndex = 0;
+
+				this.series = [];
+				this.chart = null;
+
+				this.state = {
+					title: 'Chart'
+				};
+			}
+
+			initIndex(symbol) {
+				for (let i in SYMBOLS) {
+					if (SYMBOLS[i] == symbol) {
+						this.curIndex = i;
+					}
+				}
+			}
+
+			render() {
+				const navl = {
+					position: 'fixed',
+					left: 10,
+					bottom: 25,
+					zIndex: 3,
+					fontSize: '32px',
+					height: '60px',
+					paddingTop: '20px',
+				}
+
+				const navr = {
+					position: 'fixed',
+					right: 10,
+					bottom: 25,
+					zIndex: 3,
+					fontSize: '32px',
+					height: '60px',
+					paddingTop: '20px',
+				}
+
+				return (
+					<div>
+						<AppBar title={this.state.title} backui={true} />
+						<div>
+							<div ref={this.chartRef} />
+							<div onClick={this.pre} style={navl}>pre</div>
+							<div onClick={this.next} style={navr}>next</div>
+						</div>
+					</div>
+				);
+			}
+
+			componentDidMount() {
+				console.log(this.curIndex);
+
+				this.chart = LightweightCharts.createChart(this.chartRef.current, getChartOption());
+
+				this.initIndex(this.symbol);
+				this.loadDatas(SYMBOLS[this.curIndex]);
+			}
+
+			pre = () => {
+				if (this.curIndex > 0) {
+					this.curIndex--;
+				} else {
+					this.curIndex = SYMBOLS.length - 1;
+				}
+				this.loadDatas(SYMBOLS[this.curIndex]);
+			}
+
+			next = () => {
+				if (this.curIndex < SYMBOLS.length - 1) {
+					this.curIndex++;
+				} else {
+					this.curIndex = 0;
+				}
+				this.loadDatas(SYMBOLS[this.curIndex]);
+			}
+
+			loadDatas = (symbol) => {
+				fetch("https://chart.winfirm.com.cn/datas/klines/"+ symbol + "m%23")
+					.then(res => {
+						return res.json();
+					}).then(data => {
+						this.show_candle(symbol, this.chart, data.H1);
+					}).catch(e => {
+						console.log(e)
+					});
+			}
+
+			show_candle(symbol, chart, datas) {
+				this.setState({
+					title: symbol
+				});
+
+				if (this.series.length > 0) {
+					for (let i in this.series) {
+						chart.removeSeries(this.series[i]);
+					}
+					this.series = [];
+				}
+
+				const candlestickSeries = chart.addCandlestickSeries({
+					upColor: '#cc0000', downColor: '#33cc00', borderVisible: false,
+					wickUpColor: '#cc0000', wickDownColor: '33cc00',
+					priceFormat: {
+						type: 'price',
+						precision: 6
+					}
+				});
+
+				const mainPriceOption = {
+					scaleMargins: {
+						top: 0.05,
+						bottom: 0.25
+					},
+				};
+
+				candlestickSeries.priceScale().applyOptions(mainPriceOption);
+				candlestickSeries.setData(datas.datas);
+				this.series.push(candlestickSeries);
+
+				this.show_mas(chart, datas.mas, ['#ffffff', '#ff0000', '#0066ff'], mainPriceOption);
+
+				const macdPriceOption = {
+					scaleMargins: {
+						top: 0.75,
+						bottom: 0.01
+					},
+				};
+
+				this.show_histogram(chart, datas.macds[2], macdPriceOption);
+				let macd = datas.macds[0];
+				let signal = datas.macds[1];
+				this.show_mas(chart, [macd, signal], ['#ffffff', '#ff0000'], macdPriceOption, 'macd');
+			}
+
+			show_mas(chart, datasma, colors, priceOption, priceScaleId) {
+				let lineSeries;
+				for (let i = 0; i < datasma.length; i++) {
+					lineSeries = chart.addLineSeries({
+						priceScaleId,
+						color: colors[i],
+						lineWidth: 0.5,
+						priceLineVisible: false,
+						priceFormat: {
+							type: 'price',
+							precision: 6
+						}
+					});
+					lineSeries.priceScale().applyOptions(priceOption);
+					lineSeries.setData(datasma[i]);
+					this.series.push(lineSeries);
+				}
+			}
+
+			show_histogram(chart, histogram, priceOption) {
+				let histogramSeries = chart.addHistogramSeries({
+					color: '#33cc00',
+					priceLineVisible: false,
+					priceScaleId: 'macd',
+					priceFormat: {
+						type: 'volume',
+						precision: 6
+					}
+				});
+
+				histogramSeries.priceScale().applyOptions(priceOption);
+				histogramSeries.setData(histogram);
+				this.series.push(histogramSeries);
+			}
+		}
+
+		class AppBar extends React.Component {
+			constructor(props) {
+				super(props);
+			}
+
+			render() {
+				const back_style = {
+					color: "white",
+					float: "left",
+					backgroundColor: 'transparent',
+					border: '0px',
+					width: '30px',
+					height: '30px'
+				};
+
+				const appbar = {
+					backgroundColor: 'grey',
+					height: '40px',
+					clear: 'both',
+					paddingTop: '10px'
+				};
+
+				const title = {
+					color: 'red',
+					fontSize: '28px',
+					textAlign: 'center'
+				};
+
+				if (this.props.backui) {
+					const goBack = () => {
+						ReactHistory.back()
+					}
+					return (
+						<div style={appbar}>
+							<img src='./assets/img/left.png' onClick={goBack} style={back_style} />
+							<div style={title}>{this.props.title}</div>
+						</div>);
+				} else {
+					return (
+						<div style={appbar}>
+							<div style={back_style} />
+							<div style={title}>{this.props.title}</div>
+						</div>);
+				}
+			}
+		}
+
+		function AboutPage() {
+			return (
+				<div>
+					<AppBar title={"About"} backui={true} />
+					<div>
+						Spa v1.0
+					</div>
+				</div>
+			);
+		}
+
+		function ListPage() {
+			let list = [];
+			let itemstyle = {
+				clear: '',
+				height: '52px',
+				fontSize: '24px'
+			};
+
+			for (let idx in SYMBOLS) {
+				list.push(<li style={itemstyle}><Link to={{ pathname: '/chart', query: { symbol: SYMBOLS[idx] } }} style={itemstyle} symbol={SYMBOLS[idx]}>{SYMBOLS[idx]}</Link></li>);
+			}
+			return (
+				<div>
+					<AppBar title={"List"} backui={true} />
+					<ul>
+						{list}
+					</ul>
+				</div>
+			);
+		}
+
+		function HomePage() {
+			let list = [];
+
+			let itemstyle = {
+				clear: '',
+				height: '52px',
+				fontSize: '24px'
+			};
+			list.push(<li style={itemstyle}><Link to={{ pathname: '/chart', query: { symbol: 'EURUSD' } }} style={itemstyle}>Chart</Link></li>);
+			list.push(<li style={itemstyle}><Link to={{ pathname: '/list' }} style={itemstyle}>List Page</Link></li>);
+			list.push(<li style={itemstyle}><Link to={{ pathname: '/about' }} style={itemstyle}>About</Link></li>);
+			list.push(<li style={itemstyle}><a href={'./list.html'} style={itemstyle}>List[outter]</a></li>);
+			list.push(<li style={itemstyle}><a href={'./summary.html'} style={itemstyle}>Summary[outter]</a></li>);
+			list.push(<li style={itemstyle}><a href={'./chart.html'} style={itemstyle}>Chart[outter]</a></li>);
+			list.push(<li style={itemstyle}><a href={'metatrader4://chart/EURUSDm%23'} style={itemstyle}>Mt4[outter]</a></li>);
+
+			return (
+				<div>
+					<AppBar title={"Home"} backui={false} />
+					<ul>
+						{list}
+					</ul>
+				</div>
+			);
+		}
+
+		function App() {
+			return (
+				<ReactRouterDOM.HashRouter>
+					<Route path="/" exact component={HomePage} />
+					<Route path="/list" component={ListPage} />
+					<Route path="/chart" component={ChartPage} />
+					<Route path="/about" component={AboutPage} />
+				</ReactRouterDOM.HashRouter>
+			);
+		}
+
+		ReactDOM.render(<App />, document.querySelector('#root'));
+	</script>
+</body>
+
+</html>

@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,minimum-scale=1.0" />
+  <title>Charts</title>
+  <style>
+    html,
+    body {
+      width: 100%;
+      height: 100%;
+    }
+    button {
+      margin: 0px 5px;
+      background-color: burlywood;
+      padding: 2px 5px;
+      border-radius: 5px;
+      border: 0px;
+      font-size: 14px;
+    }
+  </style>
+</head>
+<body onload="initChart()">
+    <div id="symbols" style="position:fixed; height:5%;top:0;z-index: 10;"></div>
+    <div id="chart1" style="width:30%;height:45%;position:fixed;top:5%;"></div>
+    <div id="chart2" style="width:30%;height:45%;position:fixed;top:52%;"></div>
+    <div id="chart3" style="width:68%;height:92%;position:fixed;left:32%;top:5%;"></div>
+    <div style="position:fixed;bottom: 0;text-align: center;width:100%;font-size: 10px;">
+      <a href="https://www.tradingview.com/" rel="noopener nofollow" target="_blank"><span class="blue-text">Track all markets on TradingView</span></a>
+    </div>
+  </div>
+</body>
+<script type="text/javascript">
+  var selectButton;
+
+  const SYMBOLS = [
+    "ICMARKETS:JP225", "ICMARKETS:US500", "ICMARKETS:DE40",
+    "ICMARKETS:EURUSD", "ICMARKETS:USDJPY", "ICMARKETS:GBPUSD", "ICMARKETS:AUDUSD",
+    "ICMARKETS:USDCHF", "ICMARKETS:USDCAD", "ICMARKETS:XAUUSD"
+  ];
+
+  const initChart = () => {
+    let params = window.location.search;
+    let symbol = "JP225";
+    if (params) {
+      const params = Object.fromEntries(new URLSearchParams(window.location.search));
+      symbol = params.symbol;
+    }
+
+    initSymbols();
+    loadSymbol('ICMARKETS:' + symbol);
+  }
+
+  const loadSymbol = (symbol) => {
+    console.log('loadSymbol:'+symbol);
+    initSubChart('chart1', getSymblHtml(symbol, 'D', true, false, true, false));
+    initSubChart('chart2', getSymblHtml(symbol, 60, true, false, true, false));
+
+    if (symbol.indexOf('US500') != -1) {
+      initSubChart('chart3', getSymblHtml(symbol, 5, false, false, false, true));
+    } else {
+      initSubChart('chart3', getSymblHtml(symbol, 15, false, false, false, true));
+    }
+    
+    if(selectButton){
+      selectButton.style.color = 'black';
+    }
+    selectButton = document.getElementById(symbol);
+    selectButton.style.color = 'red';
+  }
+
+  const getSymblHtml = (symbol, interval, hide_legend, hide_top_toolbar, hide_side_toolbar, withdateranges, indicators) => {
+    let html = `
+        {
+          "autosize": true,
+          "symbol": "`+ symbol + `",
+          "interval": "`+ interval + `",
+          "timezone": "Etc/UTC",
+          "theme": "light",
+          "style": "1",
+          "locale": "en",
+          "allow_symbol_change": false,
+          "hide_volume": true,
+          "hide_legend":`+ hide_legend + `,
+          "hide_top_toolbar":`+ hide_top_toolbar + `,
+          "hide_side_toolbar":`+ hide_side_toolbar + `,
+          "withdateranges":`+ withdateranges + `,
+          "calendar": false,
+          "watchlist": [],
+          "studies": [],
+          "support_host": "https://www.tradingview.com"
+        }`;
+    return html;
+  }
+
+  const initSubChart = (chardid, htmlstr) => {
+    let chartEle = document.getElementById(chardid);
+
+    if (chartEle && chartEle.childElementCount > 0) {
+      for (let idx = 0; idx < chartEle.childElementCount; idx++) {
+        chartEle.removeChild(chartEle.childNodes[idx]);
+      }
+    }
+
+    let chartWidgetEle = document.createElement('div');
+    chartWidgetEle.className = 'tradingview-widget-container__widget';
+
+    let widgetContainer = document.createElement('div');
+    widgetContainer.className = 'tradingview-widget-container';
+    widgetContainer.appendChild(chartWidgetEle);
+    chartEle.appendChild(widgetContainer);
+
+    const script = document.createElement("script");
+    script.src = "https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js";
+    script.type = "text/javascript";
+    script.async = true;
+    script.innerHTML = htmlstr;
+    widgetContainer.append(script);
+  }
+
+  const initSymbols = () => {
+    let symbolsViewEle = document.getElementById("symbols");
+    let textE;
+    for (let idx in SYMBOLS) {
+      let symbol = SYMBOLS[idx];
+      let aE = document.createElement('button');
+      aE.id = symbol;aE.innerText=symbol.replace('ICMARKETS:', '')
+      aE.onclick = (e)=> {
+        loadSymbol(symbol);
+      }
+      symbolsViewEle.appendChild(aE);
+    }
+  }
+</script>
+</html>

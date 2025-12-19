@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+	<title>Symbol List</title>
+	<script type="text/javascript" src="./assets/js/jquery-3.6.0.min.js" crossorigin="anonymous"></script>
+	<script type="text/javascript" src="./assets/js/jquery.touch.js" crossorigin="anonymous"></script>
+	<script type="text/javascript" src="./assets/js/lightweight-charts-v4.1.0.js" crossorigin="anonymous"></script>
+	<style>
+		body {
+			width: 100%;
+			padding: 0px;
+			margin: 0px;
+			background-color: transparent;
+		}
+
+		.icon {
+			width: 25px;
+			height: 25px;
+			z-index: 3;
+			position: absolute;
+			left: 0px;
+		}
+
+		.chart {
+			clear: both;
+			width: 100%;
+			padding: 0px;
+
+		}
+
+		.list {
+			padding-top: 5px;
+			width: 100%;
+		}
+
+		.link {
+			float: left;
+			margin: 2px 2px;
+			font-size: 12px;
+			color: #cccccc;
+			text-align: center;
+			width: 50px;
+		}
+	</style>
+</head>
+
+<body>
+	<img src="./assets/img/fullscreen.png" class="icon" />
+	<div id="root" class="root">
+		<div id="chart" class="chart"></div>
+		<div id="list" class="list"></div>
+	</div>
+	<script type="text/javascript">
+
+		$(".icon").click(function () {
+			if (localStorage.getItem('hide') == '1') {
+				$("#root").css("display", "block");
+				localStorage.setItem('hide', '0');
+				item_click(curSymbol, true);
+			} else {
+				$("#root").css("display", "none");
+				localStorage.setItem('hide', '1');
+			}
+		});
+
+		var SYMBOLS = ["EURUSD", "GBPUSD", "AUDUSD", "NZDUSD", "USDJPY", "USDCAD", "USDCHF", "EURGBP", "EURJPY", "EURCHF", "EURAUD", "EURCAD", "EURNZD", "GBPJPY", "GBPCHF", "GBPAUD", "GBPCAD", "GBPNZD", "AUDJPY", "AUDCHF", "AUDNZD", "AUDCAD", "CADJPY", "CADCHF", "NZDJPY", "NZDCHF", "NZDCAD", "CHFJPY"];
+		var curSymbol = 'EURUSD';
+		var slength = SYMBOLS.length;
+		var lastSelect;
+
+		function init_all() {
+			for (let idx in SYMBOLS) {
+				let symbol = SYMBOLS[idx];
+				$("#list").append("<div class=\"link\" id=\"" + symbol + "\" onclick=\"javascript:item_click('" + symbol + "',true)\">" + symbol + "</div>");
+			}
+			item_click('EURUSD', false);
+			localStorage.setItem('hide', '0');
+		}
+
+		function item_click(symbol, click) {
+			console.log(symbol + ',click:' + click);
+			curSymbol = symbol;
+
+			if (lastSelect) {
+				lastSelect.css("background-color", 'transparent');
+				lastSelect = undefined;
+			}
+
+			let ele = $("#" + symbol);
+			ele.css("background-color", '#ef5350');
+			lastSelect = ele;
+
+			if (click == true) {
+				if (window.WebAPI) {
+					window.WebAPI.openChart(symbol);
+				}
+			}
+		}
+
+		function onDateReceived(symbol, data) {
+			console.log('onDateReceived:' + symbol);
+
+			let jsonData = JSON.parse(data);
+			if (jsonData) {
+				show_chart(JSON.parse(data).datas1, symbol, true);
+			} else {
+				alert('load data failed');
+			}
+		}
+
+		function show_chart(datas, symbol, click) {
+			$("#chart").empty();
+			const chart = LightweightCharts.createChart(document.getElementById('chart'), getChartOption());
+			const mainPriceOption = {
+				scaleMargins: {
+					top: 0.05,
+					bottom: 0.25
+				},
+			};
+
+			show_candle(chart, datas.datas, mainPriceOption);
+			show_mas(chart, datas.mas, ['#ffffff', '#ff0000', '#0066ff'], mainPriceOption);
+
+			const macdPriceOption = {
+				scaleMargins: {
+					top: 0.75,
+					bottom: 0.01
+				},
+			};
+
+			show_histogram(chart, datas.macds[2], macdPriceOption);
+			let macd = datas.macds[0];
+			let signal = datas.macds[1];
+			show_mas(chart, [macd, signal], ['#ffffff', '#ff0000'], macdPriceOption, 'macd');
+		}
+
+		function show_candle(chart, datas, priceOption) {
+			const candlestickSeries = chart.addCandlestickSeries({
+				upColor: '#ef5350', downColor: '#33cc00', borderVisible: false,
+				wickUpColor: '#ef5350', wickDownColor: '33cc00',
+				priceFormat: {
+					type: 'price',
+					precision: 6
+				}
+			});
+			candlestickSeries.priceScale().applyOptions(priceOption);
+			candlestickSeries.setData(datas);
+		}
+
+		function show_mas(chart, datasma, colors, priceOption, priceScaleId) {
+			let lineSeries;
+			for (let i = 0; i < datasma.length; i++) {
+				lineSeries = chart.addLineSeries({
+					priceScaleId,
+					color: colors[i],
+					lineWidth: 0.5,
+					priceLineVisible: false,
+					priceFormat: {
+						type: 'price',
+						precision: 6
+					}
+				});
+				lineSeries.priceScale().applyOptions(priceOption);
+				lineSeries.setData(datasma[i]);
+			}
+		}
+
+		function show_histogram(chart, histogram, priceOption) {
+			let histogramSeries = chart.addHistogramSeries({
+				color: '#33cc00',
+				priceLineVisible: false,
+				priceScaleId: 'macd',
+				priceFormat: {
+					type: 'volume',
+					precision: 6
+				}
+			});
+
+			histogramSeries.priceScale().applyOptions(priceOption);
+			histogramSeries.setData(histogram);
+		}
+
+		function timestampToString(timestamp) {
+			const date = new Date(timestamp * 1000);
+			const Y = date.getFullYear() + '-';
+			const M = (date.getMonth() + 1 < 10 ? '0' + (date.getMonth() + 1) : date.getMonth() + 1) + '-';
+			const D = date.getDate() + ' ';
+			const h = date.getHours() + ':';
+			const m = date.getMinutes()
+			return M + D + h + m;
+		}
+
+		function getChartOption() {
+			let width = 320;
+			let height = 180;
+			return {
+				width,
+				height,
+				timeScale: {
+					rightOffset: 1,
+					barSpacing: 3.75,
+					rightBarStaysOnScroll: true,
+					fixLeftEdge: false,
+					alignLabels: false,
+					lockVisibleTimeRangeOnResize: true,
+					borderVisible: false,
+					visible: false,
+					tickMarkFormatter: (time, tickMarkType, locale) => {
+						if (LightweightCharts.isUTCTimestamp(time)) {
+							return timestampToString(time);
+						} else {
+							return time;
+						}
+					},
+				},
+				rightPriceScale: {
+					visible: false,
+				},
+				layout: {
+					textColor: 'white',
+					background: { type: "solid", color: 'transparent' }
+				},
+				localization: {
+					locale: 'en-US',
+					dateFormat: 'yyyy/MM/dd',
+					timeFormatter: businessDayOrTimestamp => {
+						if (LightweightCharts.isUTCTimestamp(businessDayOrTimestamp)) {
+							return timestampToString(businessDayOrTimestamp);
+						} else {
+							return businessDayOrTimestamp;
+						}
+					}
+				},
+				grid: {
+					vertLines: {
+						color: 'rgba(105 , 105 , 105 , 0.1)',
+					},
+					horzLines: {
+						color: 'rgba(105  , 105  , 105  , 0.1)',
+					}
+				},
+				crosshair: {
+					mode: 2,
+				},
+				handleScroll: {
+					horzTouchDrag: false,
+					vertTouchDrag: false,
+				}
+			};
+		}
+
+		var pageScreenX = 0;
+		var pageScreenY = 0;
+		function handler(e) {
+			if (e.originalType == "touchstart") {
+				pageScreenX = e.pageX; pageScreenY = e.pageY
+			} else if (e.originalType == "touchend") {
+				if (e.pageY - pageScreenY > 100 && pageScreenX - e.pageX < 50) {
+					pre_symbol()
+				} else if (pageScreenY - e.pageY > 100 && pageScreenX - e.pageX < 50) {
+					next_symbol()
+				}
+			}
+		}
+
+		function getIndex() {
+			for (let i in SYMBOLS) {
+				if (curSymbol == SYMBOLS[i]) {
+					console.log(i);
+					return i;
+				}
+			}
+			return 0;
+		}
+
+		function pre_symbol() {
+			let index = getIndex();
+			if (index > 0) {
+				item_click(SYMBOLS[index - 1], true);
+			} else {
+				item_click(SYMBOLS[0], true);
+			}
+		}
+
+		function next_symbol() {
+			let index = getIndex();
+			if (index < SYMBOLS.length - 1) {
+				item_click(SYMBOLS[parseInt(index) + 1], true);
+			} else {
+				item_click(SYMBOLS[index], true);
+			}
+		}
+
+		function init_touch() {
+			$("#root").touchInit({ preventDefault: false });
+			$("#root").on("touch_start", handler);
+			$("#root").on("touch_move", handler);
+			$("#root").on("touch_end", handler);
+		}
+
+		init_touch();
+		init_all();
+	</script>
+</body>
+
+</html>

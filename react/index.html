@@ -1,0 +1,471 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,minimum-scale=1.0" />
+    <title>Charts</title>
+    <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/toastify-js/src/toastify.min.css">
+    <script type="text/javascript"
+        src="https://unpkg.com/lightweight-charts@4.1.7/dist/lightweight-charts.standalone.production.js"></script>
+    <style>
+        body {
+            margin: 0;
+            background-color: transparent;
+        }
+
+        button {
+            border: 0px;
+        }
+
+        .top {
+            z-index:3;
+            width: 100%;
+        }
+
+        .top .title {
+            font-size: 20px;
+            font-weight: bold;
+        }
+
+        .top .price{
+            font-size: 12px;
+        }
+
+        .top .time_view {
+            float: right;
+            color: green;
+            text-decoration: underline;
+            margin-right: 68px;
+        }
+
+        .main_chart {
+            position: fixed;
+            width: 100%;
+            height: 55%;
+            border: 0px;
+        }
+
+        .sub_chart_left {
+            position: fixed;
+            z-index: 3;
+            left: 0;
+            width: 25%;
+            height: 20%;
+            border: 1px dashed #e1e1e1;
+            top: 35%;
+        }
+
+        .sub_chart_right {
+            position: fixed;
+            z-index: 2;
+            right: 0;
+            width: 100%;
+            height: 35%;
+            border: 0px;
+            bottom: 10%;
+        }
+
+        .arrow_view {
+            position: fixed;
+            z-index: 3;
+            top: 60%;
+            left: 5px;
+            text-align: center;
+        }
+
+        .arrow_view button {
+            color: gray;
+            float: left;
+            clear:left;
+            margin: 8px auto;
+            font-size: 26px;
+            border-radius: 10px;
+            padding: 5px;
+        }
+
+        .symbols_view {
+            position: fixed;
+            float: left;
+            width: 100%;
+            z-index: 3;
+            bottom: 5px;
+        }
+
+        .symbols_view button {
+            width: auto;
+            padding: 2px 5px;
+            margin: 5px 3px;
+            text-align: center;
+            font-size: 16px;
+            background: #e1e1e1;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="top">
+        <span id="title" class="title">Loading</span>
+        <span id="price" class="price">0.0</span>
+        <span id="time_view" class="time_view"></span>
+    </div>
+    <div id="main_chart" class="main_chart"></div>
+    <div id="sub_chart_left" class="sub_chart_left"></div>
+    <div id="sub_chart_right" class="sub_chart_right"></div>
+    <div id="symbols_view" class="symbols_view"></div>
+    <div class="arrow_view">
+        <button id="prev">&uarr;</button>
+        <button id="next">&darr;</button>
+    </div>
+</body>
+    <script type="text/javascript" src="./assets/js/utils.js"></script>
+    <script type="text/javascript">
+        var wss;
+        var isLoading = false;
+        var index = 0;
+        var lastFocusBtn;
+        var lincePrice=0.0;
+
+        const candleSeries = {
+            M5: null,
+            M15: null,
+            H1: null,
+            D1: null
+        }
+
+        const emaSeries = {
+            M5: null,
+            M15: null,
+            H1: null,
+            D1: null
+        }
+
+        const totalSeries = [];
+
+        const getConfig = (bgcolor, rightPriceScale, barSpacing, minBarSpacing,rightOffset=3) => {
+            return {
+                layout: {
+                    fontSize: 10,
+                    textColor: '#333333',
+                    background: { type: 'solid', color: bgcolor }
+                },
+                handleScroll: {
+                    horzTouchDrag: true,
+                    vertTouchDrag: true,
+                },
+                grid: {
+                    vertLines: {
+                        color: 'rgba(105  , 105  , 105  , 0.05)',
+                    },
+                    horzLines: {
+                        color: 'rgba(105  , 105  , 105  , 0.05)',
+                    }
+                },
+                timeScale: {
+                    rightOffset: rightOffset,
+                    barSpacing: barSpacing,
+                    minBarSpacing,
+                    rightBarStaysOnScroll: true,
+                    fixLeftEdge: false,
+                    alignLabels: false,
+                    lockVisibleTimeRangeOnResize: true,
+                    borderVisible: false,
+                    visible: true,
+                    allowBoldLabels: false
+                },
+                rightPriceScale: {
+                    visible: rightPriceScale,
+                },
+                crosshair: {
+                    mode: 0,
+                },
+                localization: {
+                    locale: 'en-US',
+                    dateFormat: 'yyyy/MM/dd',
+                    timeFormatter: businessDayOrTimestamp => {
+                        if (LightweightCharts.isUTCTimestamp(businessDayOrTimestamp)) {
+                            return timestampToString(businessDayOrTimestamp);
+                        } else {
+                            return businessDayOrTimestamp;
+                        }
+                    }
+                },
+            }
+        };
+
+        const removeAllSeries = () => {
+            if (totalSeries.length > 0) {
+                let i = 0;
+                let chartSeries;
+                while (i < totalSeries.length) {
+                    chartSeries = totalSeries.pop();
+                    if (chartSeries) {
+                        chartSeries.chart.removeSeries(chartSeries.series);
+                    }
+                }
+            }
+        }
+
+        const showChart = (datas, chart, timestr, priceOption, digits, point) => {
+            showCandle(datas, chart, timestr, priceOption, digits, point);
+            showEma(datas, chart, timestr, priceOption, digits, point,20,'#ff0000');
+        }
+
+        const showCandle = (datas, chart, timestr, priceOption, digits, point) => {
+            const mainSeries = chart.addCandlestickSeries({
+                touch: true,
+                borderVisible: false,
+                upColor: '#ef5350', downColor: '#26a69a', borderVisible: false,
+                wickUpColor: '#ef5350', wickDownColor: '#26a69a',
+                priceFormat: {
+                    type: 'price',
+                    precision: digits,
+                    minMove: point
+                }
+            });
+
+            mainSeries.priceScale().applyOptions(priceOption);
+            mainSeries.setData(datas);
+
+            candleSeries[timestr] = mainSeries;
+            totalSeries.push({ chart, series: mainSeries });
+
+            chart.subscribeCrosshairMove(param=>{
+                if (!param.point) {
+                    return;
+                }
+                const y = param.point.y;
+                let price = mainSeries.coordinateToPrice(y);
+                lincePrice= price.toFixed(digits);
+            });
+
+            chart.subscribeClick(()=>{
+                document.getElementById('price').innerText=lincePrice;
+            });
+        }
+
+        const showEma = (datas, chart, timestr, priceOption, digits, point,preiod,color) => {
+            let lineSeries = chart.addLineSeries({
+                color,
+                lineWidth: 0.5,
+                priceLineVisible: false,
+                priceFormat: {
+                    type: 'price',
+                    precision: digits,
+                    minMove: point
+                }
+            });
+
+            lineSeries.priceScale().applyOptions(priceOption);
+            lineSeries.setData(calculateEMA(datas, preiod, 0));
+
+            emaSeries[timestr] = lineSeries;
+            totalSeries.push({ chart: chart, series: lineSeries });
+        }
+
+        const loadDatas = (symbol) => {
+            console.log(symbol);
+            if (isLoading) {
+                console.log('loading');
+                return;
+            }
+            isLoading = true;
+
+            document.getElementById('title').innerText = symbol;
+            url = "https://chart.winfirm.com.cn/datas/klines/query?symbol=" + symbol+"&times=D1,H1,M5&counts=120,90,30";
+            fetch(url)
+                .then(res => {
+                    return res.json();
+                }).then(datas => {
+                    isLoading = false;
+                    removeAllSeries();
+                    const mainPriceOption = {
+                        scaleMargins: {
+                            top: 0.15,
+                            bottom: 0.15
+                        },
+                    };
+
+                    showChart(datas.H1, chart, "H1", mainPriceOption, datas.digits, datas.point);
+                    let subPriceOption = {
+                        scaleMargins: {
+                            top: 0.1,
+                            bottom: 0.05
+                        },
+                    };
+                    showChart(datas.D1, lsubchart, "D1", subPriceOption, datas.digits, datas.point);
+
+                    subPriceOption = {
+                        scaleMargins: {
+                            top: 0.10,
+                            bottom: 0.15
+                        },
+                    };
+                    showChart(datas.M5, rsubchart, "M5", subPriceOption, datas.digits, datas.point);
+                    let dstastr = JSON.stringify({ symbol: symbol });
+                    wss.send(dstastr);
+                }).catch(e => {
+                    console.log(e)
+                });
+        }
+
+        const initSocket = () => {
+            if (wss) {
+                return;
+            }
+            let uuid = Math.random().toString(16).slice(2);
+            console.log('init wss:' + uuid);
+            wss = new WebSocket("wss://chart.winfirm.com.cn/socket/" + uuid);
+            wss.onopen = () => {
+                console.log("on open connected");
+            }
+
+            wss.onmessage = (event) => {
+                let datas = JSON.parse(event.data);
+                if (datas.type == 1) {
+                    let series;
+                    for (let name in candleSeries) {
+                        series = candleSeries[name];
+                        if (series) {
+                            series.update(datas[name]);
+                        }
+                    }
+                } else {
+                    console.log("connected success");
+                }
+            };
+
+            wss.onclose = (ev) => {
+                console.log("disconnected");
+                wss = null;
+            }
+        }
+
+        const initViews = () => {
+            let symbolsViewEle = document.getElementById("symbols_view");
+            let textE;
+            for (let idx in SYMBOLS) {
+                let symbol = SYMBOLS[idx];
+                let aE = document.createElement('button');
+                aE.id = symbol;
+                textE = document.createTextNode(symbol.replace('Cash', ''));
+                aE.appendChild(textE);
+                aE.onclick = function () {
+                    loadSymbol(symbol);
+                }
+                symbolsViewEle.appendChild(aE);
+            }
+
+            setInterval(() => {
+                let timeView = document.getElementById("time_view");
+                timeView.innerHTML = getPSTTime();
+            }, 1);
+        }
+
+        const loadPrev = () => {
+            if (index == 0) {
+                index = SYMBOLS.length - 1;
+            } else {
+                index = index - 1;
+            }
+            loadSymbol(SYMBOLS[index]);
+        }
+
+        const loadNext = () => {
+            if (index < SYMBOLS.length - 1) {
+                index = index + 1;
+            } else {
+                index = 0;
+            }
+            loadSymbol(SYMBOLS[index]);
+        }
+
+        const loadSymbol = (symbol) => {
+            let rdx = 0;
+            for (let idx in SYMBOLS) {
+                if (symbol == SYMBOLS[idx]) {
+                    rdx = idx;
+                    break;
+                }
+            }
+            index = parseInt(rdx);
+            loadDatas(symbol);
+            focusSymbol(symbol);
+        }
+
+        const focusSymbol = (symbol) => {
+            let focusBtn = document.getElementById(symbol);
+            if (lastFocusBtn) {
+                lastFocusBtn.style.color = 'black';
+            }
+            focusBtn.style.color = 'red';
+            lastFocusBtn = focusBtn;
+        }
+
+        const jumpTrader = () => {
+            if(isMobile()){
+                let symbol = SYMBOLS[index];
+                let tail = symbol.indexOf('Cash') != -1 ? '' : 'm%23';
+                let mobileUrl = "metatrader4://chart/" + symbol + tail;
+                window.location.href =mobileUrl;
+            }else{
+                window.open("https://www.tradingview.com/chart/4rMdSSoj/",'_blank')
+            }
+        }
+
+        window.addEventListener("resize", () => {
+            chart.resize(window.innerWidth, window.innerHeight * 0.60);
+            lsubchart.resize(window.innerWidth * 0.30, window.innerHeight * 0.25);
+            rsubchart.resize(window.innerWidth * 1.00, window.innerHeight * 0.35);
+        });
+
+        //快捷键处理
+        document.onkeydown = (e) => {
+            if (e.keyCode == 32 || e.keyCode == 39 || e.keyCode == 40) {
+                loadNext();
+            } else if (e.keyCode == 37 || e.keyCode == 38) {
+                loadPrev();
+            } else if (e.keyCode == 13) {
+                jumpTrader();
+            }
+        }
+
+        document.getElementById('title').onclick = () => {
+            jumpTrader();
+        }
+
+        document.addEventListener("visibilitychange", () => {
+            if (document.visibilitychange) {
+                console.log("check connection");
+                initSocket();
+            }
+        });
+
+        document.getElementById('prev').onclick = () => {
+            loadPrev();
+        }
+
+        document.getElementById('next').onclick = () => {
+            loadNext();
+        }
+
+        let rightmenue = document.getElementById("rightmenue")
+        const chart = LightweightCharts.createChart(document.getElementById('main_chart'), getConfig('#ffffff', true, 5.5,3.5));
+        const lsubchart = LightweightCharts.createChart(document.getElementById('sub_chart_left'), getConfig('#ccffee', false, 7.5,3.5));
+        const rsubchart = LightweightCharts.createChart(document.getElementById('sub_chart_right'), getConfig('#ffffff', true, 5.5,3.5,10));
+        const dailyViewEle = document.getElementById('sub_chart_left');
+        var dailyViewShow = isMobile() ? false : true;
+
+        initViews();
+        initSocket();
+
+        let params = window.location.search;
+        let symbol = "EURUSD";
+        if (params) {
+            const params = Object.fromEntries(new URLSearchParams(window.location.search));
+            symbol = params.symbol;
+        }
+        loadSymbol(symbol);
+    </script>
+
+</html>
