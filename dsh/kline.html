@@ -99,7 +99,7 @@ main{flex:1;min-height:0;display:flex;flex-direction:column;gap:6px;padding:6px}
 var CONFIG = {
   // 直盘(对美元)为主 + BTCUSD; 如需黄金可加 'XAUUSD'(digits=2)
   symbols: ['EURUSD','GBPUSD','USDJPY','USDCHF','USDCAD','AUDUSD','NZDUSD','BTCUSD'],
-  proxyPrefix: '/bq',           // 同源代理前缀 → https://biquote.io
+  proxyPrefix: 'https://biquote.io',           // 同源代理前缀 → https://biquote.io
   intervals: { main:'1h', aux:'5m' },
   // limit 有效但按区间封顶(实际返回 limit+1 根): 1h 上限 169, 5m 上限 289
   limits: { main:100, aux:144 },
