@@ -172,7 +172,7 @@ function loadSymbolsMeta(){
     if (changed && digitsFor(state.symbol) !== state.digits){
       state.digits = digitsFor(state.symbol);
       applyPriceFormat();
-      updateStatus();
+      //updateStatus();
     }
   }).catch(function(){});
 }
@@ -250,7 +250,7 @@ function renderQuotes(q){
       chg.className = 'sym-chg ' + (dp > 0 ? 'up' : dp < 0 ? 'down' : 'flat');
     }
   });
-  updateStatus();
+  //updateStatus();
 }
 
 function renderCharts(respMain, respAux){
