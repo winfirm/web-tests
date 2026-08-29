@@ -38,18 +38,13 @@ header{flex:none;padding:8px 10px 6px;border-bottom:1px solid var(--line);backgr
 }
 .sym.on{background:var(--acc);border-color:var(--acc)}
 .sym .sym-name{font-size:12px;font-weight:700;color:var(--text);letter-spacing:.3px}
-.sym .sym-px{font-size:13px;font-weight:700;color:var(--text);font-variant-numeric:tabular-nums}
 .sym .sym-chg{font-size:11px;font-weight:600;font-variant-numeric:tabular-nums}
-.sym.on .sym-name,.sym.on .sym-px{color:#fff}
+.sym.on .sym-name{color:#fff}
 .sym.on .sym-chg{color:#fff;opacity:.92}
 .sym-chg.up{color:var(--up)} .sym-chg.down{color:var(--down)} .sym-chg.flat{color:var(--dim)}
-.status{margin-top:8px;font-size:12px;color:var(--dim);display:flex;flex-wrap:wrap;gap:2px 10px;align-items:baseline}
-.status b{color:var(--text);font-weight:600}
-.status .chg.up{color:var(--up)} .status .chg.down{color:var(--down)}
-.status .dir.up{color:var(--up)} .status .dir.down{color:var(--down)} .status .dir.flat{color:var(--dim)}
 main{flex:1;min-height:0;display:flex;flex-direction:column;gap:6px;padding:6px}
 .chart-panel{display:flex;flex-direction:column;min-height:0;background:var(--panel);border:1px solid var(--line);border-radius:10px;overflow:hidden}
-.chart-panel.h1{flex:1.75}
+.chart-panel.h1{flex:1}
 .chart-panel.m5{flex:1}
 .chart-head{flex:none;display:flex;align-items:center;gap:10px;padding:5px 10px;font-size:12px;color:var(--dim);border-bottom:1px solid var(--line)}
 .tf{font-weight:700;color:var(--text);font-size:12px;white-space:nowrap}
@@ -70,12 +65,11 @@ main{flex:1;min-height:0;display:flex;flex-direction:column;gap:6px;padding:6px}
     <div class="topbar">
       <div class="brand">Price Action<span>biquote · H1 主 / M5 辅</span></div>
       <div class="btns">
-        <button id="btnAuto" class="icon-btn" type="button" title="自动刷新开关">AUTO 15s</button>
+        <button id="btnAuto" class="icon-btn" type="button" title="自动刷新开关">AUTO 5s</button>
         <button id="btnRefresh" class="icon-btn" type="button" title="立即刷新">⟳</button>
       </div>
     </div>
     <div id="symbols"></div>
-    <div class="status" id="status">加载中…</div>
   </header>
   <main>
     <section class="chart-panel h1">
@@ -98,12 +92,12 @@ main{flex:1;min-height:0;display:flex;flex-direction:column;gap:6px;padding:6px}
 /* ============ 页面配置 ============ */
 var CONFIG = {
   // 直盘(对美元)为主 + BTCUSD; 如需黄金可加 'XAUUSD'(digits=2)
-  symbols: ['EURUSD','GBPUSD','USDJPY','USDCHF','USDCAD','AUDUSD','NZDUSD','BTCUSD'],
+  symbols: ['EURUSD','GBPUSD','USDJPY','USDCHF','USDCAD','AUDUSD','XAUUSD','BTCUSD'],
   proxyPrefix: 'https://biquote.io',           // 同源代理前缀 → https://biquote.io
   intervals: { main:'1h', aux:'5m' },
   // limit 有效但按区间封顶(实际返回 limit+1 根): 1h 上限 169, 5m 上限 289
   limits: { main:100, aux:144 },
-  refreshSec: 15,               // 自动刷新间隔(秒), 0 关闭
+  refreshSec: 5,                // 自动刷新间隔(秒), 0 关闭
   up: '#ef5350',                // 红涨
   down: '#26a69a',              // 绿跌
   // digits 兜底(优先用 /api/symbols 的权威值)
@@ -123,7 +117,7 @@ var state = {
 };
 
 var $ = function(id){ return document.getElementById(id); };
-var elSymbols=$('symbols'), elStatus=$('status'),
+var elSymbols=$('symbols'),
     elOhlcH1=$('ohlcH1'), elOhlcM5=$('ohlcM5'), elErr=$('errbar'),
     btnAuto=$('btnAuto'), btnRefresh=$('btnRefresh');
 
@@ -172,7 +166,6 @@ function loadSymbolsMeta(){
     if (changed && digitsFor(state.symbol) !== state.digits){
       state.digits = digitsFor(state.symbol);
       applyPriceFormat();
-      //updateStatus();
     }
   }).catch(function(){});
 }
@@ -188,14 +181,17 @@ function candleOpts(){
            borderUpColor:CONFIG.up, borderDownColor:CONFIG.down,
            wickUpColor:CONFIG.up, wickDownColor:CONFIG.down };
 }
+function lineOpts(color, title){
+  return { color:color, lineWidth:1, priceLineVisible:false, lastValueVisible:true, crosshairMarkerVisible:false, title:title };
+}
 var CHART_OPTS = {
   autoSize: true,
-  layout: { background:{ type:'solid', color:'#11151d' }, textColor:'#8b949e', fontSize:11,
+  layout: {  attributionLogo:false, background:{ type:'solid', color:'#11151d' }, textColor:'#8b949e', fontSize:11,
             fontFamily:'system-ui,-apple-system,"PingFang SC","Microsoft YaHei",sans-serif' },
   grid: { vertLines:{ color:'rgba(148,163,184,0.07)' }, horzLines:{ color:'rgba(148,163,184,0.07)' } },
   rightPriceScale: { borderColor:'rgba(148,163,184,0.2)', scaleMargins:{ top:0.08, bottom:0.08 } },
   timeScale: { borderColor:'rgba(148,163,184,0.2)', timeVisible:true, secondsVisible:false,
-               rightOffset:2, barSpacing:6, tickMarkFormatter: fmtTick },
+               rightOffset:3, barSpacing:6, tickMarkFormatter: fmtTick },
   localization: { timeFormatter: fmtFull,
                   priceFormatter: function(p){ return p == null ? '--' : p.toFixed(state.digits); } },
   crosshair: { mode: LWC.CrosshairMode.Normal }
@@ -204,6 +200,9 @@ var h1 = LWC.createChart($('boxH1'), CHART_OPTS);
 var m5 = LWC.createChart($('boxM5'), CHART_OPTS);
 var s1 = h1.addSeries(LWC.CandlestickSeries, candleOpts());
 var s2 = m5.addSeries(LWC.CandlestickSeries, candleOpts());
+var ema1_20 = h1.addSeries(LWC.LineSeries, lineOpts('#f59e0b', ''));
+var ema2_20 = m5.addSeries(LWC.LineSeries, lineOpts('#f59e0b', ''));
+var ema2_50 = m5.addSeries(LWC.LineSeries, lineOpts('#a78bfa', ''));
 
 function applyPriceFormat(){
   var d = state.digits;
@@ -227,11 +226,16 @@ function toBars(resp){
   return out;
 }
 
-function barAtOrBefore(bars, t){
-  if (!bars || !bars.length) return null;
-  var lo=0, hi=bars.length-1, ans=null;
-  while (lo<=hi){ var mid=(lo+hi)>>1; if (bars[mid].time<=t){ ans=bars[mid]; lo=mid+1; } else { hi=mid-1; } }
-  return ans;
+// 计算 EMA(指数移动平均), 返回 {time, value}[], 首根用收盘价做种子
+function calcEma(bars, period){
+  var k = 2 / (period + 1);
+  var out = [];
+  var ema = 0;
+  for (var i = 0; i < bars.length; i++){
+    ema = i === 0 ? bars[i].close : bars[i].close * k + ema * (1 - k);
+    out.push({ time: bars[i].time, value: ema });
+  }
+  return out;
 }
 
 /* ============ 渲染 ============ */
@@ -240,72 +244,43 @@ function renderQuotes(q){
   Array.prototype.forEach.call(elSymbols.children, function(node){
     var sym = node.getAttribute('data-sym');
     var qt = state.quotes[sym];
-    var d = digitsFor(sym);
-    var px = node.querySelector('.sym-px');
     var chg = node.querySelector('.sym-chg');
     if (qt && qt.mid != null){
-      px.textContent = qt.mid.toFixed(d);
       var dp = qt.dayDiffPercent != null ? qt.dayDiffPercent : 0;
       chg.textContent = (dp >= 0 ? '+' : '') + dp.toFixed(2) + '%';
       chg.className = 'sym-chg ' + (dp > 0 ? 'up' : dp < 0 ? 'down' : 'flat');
     }
   });
-  //updateStatus();
 }
 
-function renderCharts(respMain, respAux){
+function renderCharts(respMain, respAux, resetView){
   state.digits = digitsFor(state.symbol);
   applyPriceFormat();
 
-  // 保留用户当前缩放(H1)
-  var vr = null; try { vr = h1.timeScale().getVisibleRange(); } catch(e){}
+  // 保留用户当前缩放(H1); 切换品种时重置视图(fitContent 会应用 rightOffset 留白)。
+  // 用 logical range 保留: 时间区间的 setVisibleRange 会丢失 rightOffset 空白,
+  // 而 logical range 的 to 端天然包含留白(最后一根 + rightOffset), round-trip 后留白仍在。
+  var vr = null;
+  if (!resetView) { try { vr = h1.timeScale().getVisibleLogicalRange(); } catch(e){} }
 
   state.h1bars = toBars(respMain);
   var m5b = toBars(respAux);
   s1.setData(state.h1bars);
   s2.setData(m5b);
+  ema1_20.setData(calcEma(state.h1bars, 20));
+  ema2_20.setData(calcEma(m5b, 20));
+  ema2_50.setData(calcEma(m5b, 50));
   state.lastH1 = state.h1bars.length ? state.h1bars[state.h1bars.length-1] : null;
   state.lastM5 = m5b.length ? m5b[m5b.length-1] : null;
 
-  if (vr && vr.from != null && vr.to != null) {
-    try { h1.timeScale().setVisibleRange(vr); } catch(e){}
+  if (!resetView && vr && vr.from != null && vr.to != null) {
+    try { h1.timeScale().setVisibleLogicalRange(vr); } catch(e){}
   } else {
     h1.timeScale().fitContent();
   }
-  // 让 M5 跟随 H1 的可见区间(没有数据处自动裁切)
-  syncRange(h1, m5);
 
-  //updateStatus();
   paintOhlc(elOhlcH1, state.lastH1);
   paintOhlc(elOhlcM5, state.lastM5);
-}
-
-function updateStatus(){
-  var qt = state.quotes[state.symbol];
-  var d = state.digits;
-  var bars = state.h1bars;
-  var html = '<b>'+esc(state.symbol)+'</b>';
-  if (qt){
-    var dir = (qt.direction || 'FLAT').toUpperCase();
-    var arrow = dir === 'UP' ? '↑' : dir === 'DOWN' ? '↓' : '→';
-    html += '<span class="dir '+dir.toLowerCase()+'">'+arrow+'</span>';
-    if (qt.mid != null) html += '<span>现 '+qt.mid.toFixed(d)+'</span>';
-    if (qt.bid != null && qt.ask != null) html += '<span>买 '+qt.bid.toFixed(d)+' / 卖 '+qt.ask.toFixed(d)+'</span>';
-    if (qt.dayDiffPercent != null){
-      var dp = qt.dayDiffPercent;
-      html += '<span class="chg '+(dp>=0?'up':'down')+'">'+(dp>=0?'+':'')+dp.toFixed(2)+'%</span>';
-    }
-    if (qt.high != null) html += '<span>今高 <b style="color:var(--up)">'+qt.high.toFixed(d)+'</b></span>';
-    if (qt.low != null) html += '<span>今低 <b style="color:var(--down)">'+qt.low.toFixed(d)+'</b></span>';
-    if (qt.spread != null) html += '<span>点差 '+qt.spread.toFixed(d)+'</span>';
-  }
-  if (bars.length){
-    var hi=-Infinity, lo=Infinity;
-    bars.forEach(function(x){ if (x.high>hi) hi=x.high; if (x.low<lo) lo=x.low; });
-    html += '<span>'+bars.length+'H 高 <b style="color:var(--up)">'+hi.toFixed(d)+'</b></span>';
-    html += '<span>低 <b style="color:var(--down)">'+lo.toFixed(d)+'</b></span>';
-  }
-  elStatus.innerHTML = html;
 }
 
 function paintOhlc(el, bar){
@@ -318,7 +293,7 @@ function paintOhlc(el, bar){
     ' <span class="t">'+fmtFull(bar.time)+'</span>';
 }
 
-/* ============ 联动 ============ */
+/* ============ 十字光标 OHLC 读数 ============ */
 h1.subscribeCrosshairMove(function(param){
   var bar = (param && param.seriesData) ? param.seriesData.get(s1) : undefined;
   paintOhlc(elOhlcH1, bar || state.lastH1);
@@ -326,34 +301,7 @@ h1.subscribeCrosshairMove(function(param){
 m5.subscribeCrosshairMove(function(param){
   var bar = (param && param.seriesData) ? param.seriesData.get(s2) : undefined;
   paintOhlc(elOhlcM5, bar || state.lastM5);
-  var t = param && param.time;
-  if (t == null) { try{ h1.clearCrosshairPosition(); }catch(e){} return; }
-  var hb = barAtOrBefore(state.h1bars, t);
-  if (hb) { try{ h1.setCrosshairPosition(hb.close, hb.time, s1); }catch(e){} }
 });
-/* 范围联动: 双图时间区间同步。
-   M5 数据量少(约 12h), 若把 H1 的宽区间同步过去会被裁到自身 12h,
-   再反向把 H1 缩窄 → H1 只剩十几根又粗又大的 K 线。
-   用时间戳做回波抑制: 程序同步后 300ms 内的范围变化视为回波, 不参与联动。 */
-var _syncUntil = 0;
-function markSync(){ _syncUntil = Date.now() + 300; }
-function isEcho(){ return Date.now() < _syncUntil; }
-function syncRange(src, dst){
-  var vr = null; try { vr = src.timeScale().getVisibleRange(); } catch(e){}
-  if (!vr || vr.from == null || vr.to == null) return;
-  markSync();
-  try { dst.timeScale().setVisibleRange(vr); } catch(e){}
-}
-function linkRanges(){
-  h1.timeScale().subscribeVisibleLogicalRangeChange(function(range){
-    if (!range || isEcho()) return;
-    syncRange(h1, m5);
-  });
-  m5.timeScale().subscribeVisibleLogicalRangeChange(function(range){
-    if (!range || isEcho()) return;
-    syncRange(m5, h1);
-  });
-}
 
 /* ============ 品种切换 / 刷新 ============ */
 function buildTabs(){
@@ -364,19 +312,18 @@ function buildTabs(){
     b.className = 'sym' + (sym === state.symbol ? ' on' : '');
     b.setAttribute('data-sym', sym);
     b.innerHTML = '<span class="sym-name">'+esc(sym)+'</span>' +
-                  '<span class="sym-px">--</span>' +
                   '<span class="sym-chg flat">--</span>';
     b.addEventListener('click', function(){
       if (sym === state.symbol) return;
       state.symbol = sym;
       Array.prototype.forEach.call(elSymbols.children, function(x){ x.classList.toggle('on', x.getAttribute('data-sym')===sym); });
-      load(false);
+      load(false, true);
     });
     elSymbols.appendChild(b);
   });
 }
 
-function load(silent){
+function load(silent, resetView){
   if (state.loading) return;
   state.loading = true;
   if (!silent) setErr('');
@@ -388,7 +335,7 @@ function load(silent){
     fetchOhlc(sym, aux, CONFIG.limits.aux)
   ]).then(function(res){
     renderQuotes(res[0]);
-    renderCharts(res[1], res[2]);
+    renderCharts(res[1], res[2], resetView);
   }).catch(function(err){
     setErr(sym+' 加载失败: '+err.message);
   }).then(function(){ state.loading = false; });
@@ -419,7 +366,6 @@ btnAuto.addEventListener('click', function(){ setAuto(CONFIG.refreshSec <= 0); }
 
 /* ============ 启动 ============ */
 buildTabs();
-linkRanges();
 applyPriceFormat();
 loadSymbolsMeta();
 setAuto(true);
